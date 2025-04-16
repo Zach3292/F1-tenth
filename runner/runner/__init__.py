@@ -17,6 +17,7 @@ class Gap_Finder(Node):
 
     angle_increment = 0
     range_max = 0
+    max_speed = 3.0
 
     def __init__(self):
         super().__init__("runner_node")
@@ -99,23 +100,16 @@ class Gap_Finder(Node):
         self.ranges = np.copy(msg.ranges)
         self.angle_increment = msg.angle_increment
         self.range_max = msg.range_max
-        # angle_b = np.pi/2
-        # reject_index = int((msg.angle_max-angle_b) / msg.angle_increment)
-
-        # for i in range(reject_index):
-        #     self.ranges[i] = 0
-        # for i in range((len(self.ranges) - reject_index), len(self.ranges)):
-        #     self.ranges[i] = 0
 
         ranges_with_bubble = self.create_safety_bubble(self.ranges, 2)
         gap = self.find_largest_gap(ranges_with_bubble)
-        center = self.center_of_deepest_gap(gap, ranges_with_bubble, 2.7)
+        center = self.center_of_deepest_gap(gap, ranges_with_bubble, 2.5)
         angle = (center - len(self.ranges) / 2) * msg.angle_increment
 
         self.time = self.get_clock().now().nanoseconds / 1e6
 
-        steering_PID = PID(1.1, 0.0001, 1.5)
-        throttle_PID = PID(0.05, 0.01, 0.01)
+        steering_PID = PID(0.5, 0, 1)
+        throttle_PID = PID(0.05, 0, 0)
 
         steering = steering_PID.update(self.setpoint, angle, self.time - self.previous_time)
 
@@ -126,38 +120,22 @@ class Gap_Finder(Node):
         if msg.ranges[steering_index] == np.nan:
             speed = 0
         else:
-            speed = (msg.ranges[steering_index] / 4) * (np.abs(1 / steering) ** 3)
+            speed = (msg.ranges[steering_index] / 4) * (np.abs(1 / steering) ** 2)
+
+        speed = min(speed, self.max_speed)
 
         throttle = throttle_PID.update(speed, self.velocity, self.time - self.previous_time)
         throttle = min(1.0, throttle)
-        # msg = AckermannDriveStamped()
         steering_msg = Float32()
         throttle_msg = Float32()
 
         throttle_msg.data = throttle
-        # msg.drive.speed = speed
 
-        # msg.drive.steering_angle = -control
         steering_msg.data = -steering
-        # self.publisher1_.publish(msg)
         self.publisher2_.publish(steering_msg)
         self.publisher3_.publish(throttle_msg)
 
         self.previous_time = self.time
-
-        # angle_b = np.pi/2
-        # angle_a = np.pi/3
-        # delta_angle = np.abs(angle_b - angle_a)
-        # index_b = int((angle_b-msg.angle_min) / msg.angle_increment)
-        # index_a = int((angle_a-msg.angle_min) / msg.angle_increment)
-        # a = self.ranges[index_a]
-        # b = self.ranges[index_b]
-
-        # alpha = np.arctan((a*np.cos(delta_angle)-b)/(a*np.sin(delta_angle)))
-
-        # measured_distance = b*np.cos(alpha)
-
-        # self.future_measurement = measured_distance + self.velocity*(self.time - self.previous_time)*np.sin(alpha)
 
     def speed_callback(self, msg):
         self.velocity = msg.data
