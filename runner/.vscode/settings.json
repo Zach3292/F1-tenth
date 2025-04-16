@@ -1,0 +1,26 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/zacharie/sim_ws/install/wall_follower/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/runner/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/sim_safety/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/f1tenth_gym_ros/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/build/rover_sim",
+        "/home/zacharie/ros2_ws/install/rover_sim/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/install/rover_gui/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/install/rover_msgs/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/zacharie/sim_ws/install/wall_follower/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/runner/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/sim_safety/lib/python3.10/site-packages",
+        "/home/zacharie/sim_ws/install/f1tenth_gym_ros/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/build/rover_sim",
+        "/home/zacharie/ros2_ws/install/rover_sim/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/install/rover_gui/lib/python3.10/site-packages",
+        "/home/zacharie/ros2_ws/install/rover_msgs/local/lib/python3.10/dist-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}
