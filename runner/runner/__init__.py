@@ -17,7 +17,7 @@ class Gap_Finder(Node):
 
     angle_increment = 0
     range_max = 0
-    max_speed = 3.0
+    max_speed = 4.0
 
     def __init__(self):
         super().__init__("runner_node")
@@ -103,26 +103,27 @@ class Gap_Finder(Node):
 
         ranges_with_bubble = self.create_safety_bubble(self.ranges, 2)
         gap = self.find_largest_gap(ranges_with_bubble)
-        center = self.center_of_deepest_gap(gap, ranges_with_bubble, 2.5)
+        center = self.center_of_deepest_gap(gap, ranges_with_bubble, 2.7)
         angle = (center - len(self.ranges) / 2) * msg.angle_increment
 
         self.time = self.get_clock().now().nanoseconds / 1e6
 
-        steering_PID = PID(0.5, 0, 1)
-        throttle_PID = PID(0.05, 0, 0)
+        steering_PID = PID(0.75, 0, 1)
+        throttle_PID = PID(0.06, 0, 0.1)
 
         steering = steering_PID.update(self.setpoint, angle, self.time - self.previous_time)
 
         steering_index = int((len(self.ranges) / 2) - (angle / self.angle_increment))
 
-        steering_index = min(len(self.ranges) - 1, steering_index)
+        # steering_index = min(len(self.ranges) - 1, steering_index)
 
         if msg.ranges[steering_index] == np.nan:
             speed = 0
         else:
-            speed = (msg.ranges[steering_index] / 4) * (np.abs(1 / steering) ** 2)
+            speed = msg.ranges[steering_index]
 
         speed = min(speed, self.max_speed)
+        speed = ((speed / self.max_speed) ** 2.5) * self.max_speed  # * (np.abs(1 / steering))
 
         throttle = throttle_PID.update(speed, self.velocity, self.time - self.previous_time)
         throttle = min(1.0, throttle)
