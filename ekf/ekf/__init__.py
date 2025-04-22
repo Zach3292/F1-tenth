@@ -18,6 +18,8 @@ class Extended_Kalman_Filter(Node):
     previous_right_encoder_position = 0
     left_encoder_velocity = 0
     right_encoder_velocity = 0
+    previous_left_encoder_time = 0
+    previous_right_encoder_time = 0
 
     stateMatrix = np.zeros(5, np.float32)
 
@@ -59,21 +61,23 @@ class Extended_Kalman_Filter(Node):
         return
 
     def left_encoder_callback(self, msg):
-        self.previous_left_encoder_position = self.left_encoder_position
         self.left_encoder_position = msg.position[0]
         self.left_encoder_velocity = (self.left_encoder_position - self.previous_left_encoder_position) / (
-            msg.header.stamp.sec
+            msg.header.stamp.sec - self.previous_left_encoder_time
         )
         self.left_encoder_velocity = self.left_encoder_velocity / self.wheel_radius
+        self.previous_left_encoder_position = self.left_encoder_position
+        self.previous_left_encoder_time = msg.header.stamp.sec
         return
 
     def right_encoder_callback(self, msg):
-        self.previous_right_encoder_position = self.right_encoder_position
         self.right_encoder_position = msg.position[0]
         self.right_encoder_velocity = (self.right_encoder_position - self.previous_right_encoder_position) / (
-            msg.header.stamp.sec
+            msg.header.stamp.sec - self.previous_right_encoder_time
         )
         self.right_encoder_velocity = self.right_encoder_velocity / self.wheel_radius
+        self.previous_right_encoder_position = self.right_encoder_position
+        self.previous_right_encoder_time = msg.header.stamp.sec
         return
 
     def main_loop(self):
