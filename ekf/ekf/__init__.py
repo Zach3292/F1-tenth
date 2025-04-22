@@ -23,16 +23,13 @@ class Extended_Kalman_Filter(Node):
 
     stateMatrix = np.zeros(5)
 
-    processCovariance = 0.025
-    processCovarianceMatrix = np.eye((5)) * processCovariance
-
-    estimatedCovariance = 0.005
+    estimatedCovariance = 0.025
     estimatedCovarianceMatrix = np.eye((5)) * estimatedCovariance
 
     encoderCovariance = 0.001
     encoderCovarianceMatrix = np.eye((5)) * encoderCovariance
 
-    delta_time = 1 / 60
+    delta_time = 1 / 60.0  # 60Hz
 
     wheel_radius = 1.5 * 2.54 / 100
     wheel_base = 0.15
@@ -113,9 +110,9 @@ class Extended_Kalman_Filter(Node):
 
         imu_covariance_matrix = np.dot(imu_covariance_1D, imu_covariance_1D.T)
 
-        imu_estimated_state = np.dot(A_matrix, self.stateMatrix) + imu_control_matrix + imu_covariance_1D
+        imu_estimated_state = np.dot(A_matrix, self.stateMatrix) + imu_control_matrix  # + imu_covariance_1D
 
-        va = (self.left_encoder_velocity + self.right_encoder_velocity) / 2
+        va = (self.left_encoder_velocity + self.right_encoder_velocity) * self.wheel_radius * np.pi
 
         encoder_control_matrix = np.array(
             [
@@ -123,7 +120,7 @@ class Extended_Kalman_Filter(Node):
                 va * np.sin(self.stateMatrix[4]) * self.delta_time,
                 va * np.cos(self.stateMatrix[4]),
                 va * np.sin(self.stateMatrix[4]),
-                (self.right_encoder_velocity - self.left_encoder_velocity) * self.delta_time / self.wheel_base,
+                ((self.right_encoder_velocity - self.left_encoder_velocity) * self.wheel_radius * 2 / self.wheel_base) * self.delta_time
             ]
         )
 
@@ -131,15 +128,14 @@ class Extended_Kalman_Filter(Node):
 
         self.encoderCovarianceMatrix = np.dot(encoder_covariance_1D, encoder_covariance_1D.T)
 
-        encoder_estimated_state = np.dot(A_matrix, self.stateMatrix) + encoder_control_matrix + encoder_covariance_1D
+        encoder_estimated_state = encoder_control_matrix  # + encoder_covariance_1D  # np.dot(A_matrix, self.stateMatrix) + encoder_control_matrix + encoder_covariance_1D
 
         P = np.dot(np.dot(A_matrix, self.estimatedCovarianceMatrix), A_matrix.T) + imu_covariance_matrix
 
-        K = np.dot(P, np.linalg.inv(P + self.encoderCovarianceMatrix))
+        K = np.dot(P, np.linalg.pinv(P + self.encoderCovarianceMatrix))
 
         self.stateMatrix = imu_estimated_state + np.dot(K, (encoder_estimated_state - imu_estimated_state))
-        self.get_logger().info(f"State Matrix: {self.stateMatrix}")
-
+        # self.get_logger().info(f"State: {self.stateMatrix}")
         self.estimatedCovarianceMatrix = np.dot((np.eye(5) - K), P)
 
         state_msg = Pose()

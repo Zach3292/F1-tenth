@@ -12,6 +12,14 @@ def generate_launch_description():
         name="safety_node",
         output="screen",
     )
+
+    ekf_node = Node(
+        package="ekf",
+        executable="ekf_node",
+        name="ekf_node",
+        output="screen",
+    )
+
     runner_node = Node(
         package="runner",
         executable="runner_node",
@@ -20,5 +28,6 @@ def generate_launch_description():
     )
 
     # ld.add_action(safety_node)
+    ld.add_action(ekf_node)
     ld.add_action(runner_node)
     return ld
