@@ -26,13 +26,13 @@ class Extended_Kalman_Filter(Node):
     estimatedCovariance = 0.025
     estimatedCovarianceMatrix = np.eye((5)) * estimatedCovariance
 
-    encoderCovariance = 0.001
+    encoderCovariance = 0.025
     encoderCovarianceMatrix = np.eye((5)) * encoderCovariance
 
     delta_time = 1 / 60.0  # 60Hz
 
-    wheel_radius = 1.5 * 2.54 / 100
-    wheel_base = 0.15
+    wheel_radius = 1 * 2.54 / 100
+    wheel_base = 0.2
 
     def __init__(self):
         super().__init__("ekf_node")
@@ -120,7 +120,8 @@ class Extended_Kalman_Filter(Node):
                 va * np.sin(self.stateMatrix[4]) * self.delta_time,
                 va * np.cos(self.stateMatrix[4]),
                 va * np.sin(self.stateMatrix[4]),
-                ((self.right_encoder_velocity - self.left_encoder_velocity) * self.wheel_radius * 2 / self.wheel_base) * self.delta_time
+                ((self.right_encoder_velocity - self.left_encoder_velocity) * self.wheel_radius * 2 / self.wheel_base)
+                * self.delta_time,
             ]
         )
 
@@ -128,13 +129,16 @@ class Extended_Kalman_Filter(Node):
 
         self.encoderCovarianceMatrix = np.dot(encoder_covariance_1D, encoder_covariance_1D.T)
 
-        encoder_estimated_state = encoder_control_matrix  # + encoder_covariance_1D  # np.dot(A_matrix, self.stateMatrix) + encoder_control_matrix + encoder_covariance_1D
+        encoder_estimated_state = np.dot(A_matrix, self.stateMatrix) + encoder_control_matrix  # + encoder_covariance_1D
+
+        self.get_logger().info(f"IMU: {imu_estimated_state[4]} Encoder: {encoder_estimated_state[4]}")
 
         P = np.dot(np.dot(A_matrix, self.estimatedCovarianceMatrix), A_matrix.T) + imu_covariance_matrix
 
         K = np.dot(P, np.linalg.pinv(P + self.encoderCovarianceMatrix))
 
         self.stateMatrix = imu_estimated_state + np.dot(K, (encoder_estimated_state - imu_estimated_state))
+        # self.stateMatrix[4] = np.arctan2(np.sin(self.stateMatrix[4]), np.cos(self.stateMatrix[4]))
         # self.get_logger().info(f"State: {self.stateMatrix}")
         self.estimatedCovarianceMatrix = np.dot((np.eye(5) - K), P)
 
