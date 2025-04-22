@@ -10,8 +10,8 @@ class Extended_Kalman_Filter(Node):
 
     angular_velocity = 0
     angular_velocity_covariance = 0
-    linear_acceleration = np.zeros(2, np.float32)
-    linear_acceleration_covariance = np.zeros((2, 2), np.float32)
+    linear_acceleration = np.zeros(2)
+    linear_acceleration_covariance = np.zeros((2, 2))
     left_encoder_position = 0
     right_encoder_position = 0
     previous_left_encoder_position = 0
@@ -21,16 +21,16 @@ class Extended_Kalman_Filter(Node):
     previous_left_encoder_time = 0
     previous_right_encoder_time = 0
 
-    stateMatrix = np.zeros(5, np.float32)
+    stateMatrix = np.zeros(5)
 
     processCovariance = 0.025
-    processCovarianceMatrix = np.eye((5), dtype=np.float32) * processCovariance
+    processCovarianceMatrix = np.eye((5)) * processCovariance
 
-    estimatedCovariance = 0.025
-    estimatedCovarianceMatrix = np.eye((5), dtype=np.float32) * estimatedCovariance
+    estimatedCovariance = 0.005
+    estimatedCovarianceMatrix = np.eye((5)) * estimatedCovariance
 
-    encoderCovariance = 0.025
-    encoderCovarianceMatrix = np.eye((2), dtype=np.float32) * encoderCovariance
+    encoderCovariance = 0.001
+    encoderCovarianceMatrix = np.eye((5)) * encoderCovariance
 
     delta_time = 1 / 60
 
@@ -63,22 +63,21 @@ class Extended_Kalman_Filter(Node):
     def left_encoder_callback(self, msg):
         self.left_encoder_position = msg.position[0]
         self.left_encoder_velocity = (self.left_encoder_position - self.previous_left_encoder_position) / (
-            msg.header.stamp.sec - self.previous_left_encoder_time
+            (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9) - self.previous_left_encoder_time
         )
         self.left_encoder_velocity = self.left_encoder_velocity / self.wheel_radius
         self.previous_left_encoder_position = self.left_encoder_position
-        self.previous_left_encoder_time = msg.header.stamp.sec
+        self.previous_left_encoder_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         return
 
     def right_encoder_callback(self, msg):
         self.right_encoder_position = msg.position[0]
         self.right_encoder_velocity = (self.right_encoder_position - self.previous_right_encoder_position) / (
-            msg.header.stamp.sec - self.previous_right_encoder_time
+            (msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9) - self.previous_right_encoder_time
         )
         self.right_encoder_velocity = self.right_encoder_velocity / self.wheel_radius
         self.previous_right_encoder_position = self.right_encoder_position
-        self.previous_right_encoder_time = msg.header.stamp.sec
-        return
+        self.previous_right_encoder_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
     def main_loop(self):
 
@@ -89,8 +88,7 @@ class Extended_Kalman_Filter(Node):
                 [0, 0, 1, 0, 0],
                 [0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 1],
-            ],
-            dtype=np.float32,
+            ]
         )
 
         imu_control_matrix = np.array(
@@ -100,19 +98,17 @@ class Extended_Kalman_Filter(Node):
                 self.linear_acceleration[0] * self.delta_time,
                 self.linear_acceleration[1] * self.delta_time,
                 self.angular_velocity * self.delta_time,
-            ],
-            dtype=np.float32,
+            ]
         )
 
         imu_covariance_1D = np.array(
             [
-                self.linear_acceleration_covariance[0][0],
-                self.linear_acceleration_covariance[1][1],
-                self.linear_acceleration_covariance[0][0],
-                self.linear_acceleration_covariance[1][1],
-                self.angular_velocity_covariance,
-            ],
-            dtype=np.float32,
+                np.random.normal(0, np.sqrt(self.linear_acceleration_covariance[0][0])),
+                np.random.normal(0, np.sqrt(self.linear_acceleration_covariance[1][1])),
+                np.random.normal(0, np.sqrt(self.linear_acceleration_covariance[0][0])),
+                np.random.normal(0, np.sqrt(self.linear_acceleration_covariance[1][1])),
+                np.random.normal(0, np.sqrt(self.angular_velocity_covariance)),
+            ]
         )
 
         imu_covariance_matrix = np.dot(imu_covariance_1D, imu_covariance_1D.T)
@@ -128,30 +124,29 @@ class Extended_Kalman_Filter(Node):
                 va * np.cos(self.stateMatrix[4]),
                 va * np.sin(self.stateMatrix[4]),
                 (self.right_encoder_velocity - self.left_encoder_velocity) * self.delta_time / self.wheel_base,
-            ],
-            dtype=np.float32,
+            ]
         )
 
-        encoder_covariance_1D = np.ones(5) * self.encoderCovariance
+        encoder_covariance_1D = np.ones(5) * np.random.normal(0, np.sqrt(self.encoderCovariance))
 
-        encoder_covariance_matrix = np.dot(encoder_covariance_1D, encoder_covariance_1D.T)
+        self.encoderCovarianceMatrix = np.dot(encoder_covariance_1D, encoder_covariance_1D.T)
 
         encoder_estimated_state = np.dot(A_matrix, self.stateMatrix) + encoder_control_matrix + encoder_covariance_1D
 
         P = np.dot(np.dot(A_matrix, self.estimatedCovarianceMatrix), A_matrix.T) + imu_covariance_matrix
 
-        K = np.dot(P, np.linalg.inv(P + encoder_covariance_matrix))
+        K = np.dot(P, np.linalg.inv(P + self.encoderCovarianceMatrix))
 
         self.stateMatrix = imu_estimated_state + np.dot(K, (encoder_estimated_state - imu_estimated_state))
         self.get_logger().info(f"State Matrix: {self.stateMatrix}")
 
-        self.estimatedCovarianceMatrix = np.dot((np.eye(5, dtype=np.float32) - K), P)
+        self.estimatedCovarianceMatrix = np.dot((np.eye(5) - K), P)
 
         state_msg = Pose()
-        state_msg.position.x = self.stateMatrix[0]
-        state_msg.position.y = self.stateMatrix[1]
-        state_msg.orientation.w = np.cos(self.stateMatrix[4] / 2)
-        state_msg.orientation.z = np.sin(self.stateMatrix[4] / 2)
+        state_msg.position.x = float(self.stateMatrix[0])
+        state_msg.position.y = float(self.stateMatrix[1])
+        state_msg.orientation.w = float(np.cos(self.stateMatrix[4] / 2))
+        state_msg.orientation.z = float(np.sin(self.stateMatrix[4] / 2))
         state_msg.orientation.x = 0.0
         state_msg.orientation.y = 0.0
         state_msg.position.z = 0.0
